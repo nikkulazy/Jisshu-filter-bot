@@ -264,4 +264,50 @@ async def successful_premium_payment(client, message):
         print(f"Error Processing Premium Payment: {e}")
         await message.reply("✅ Thank You For Your Payment! (Error Logging Details)")
 
+# 🛠 ADMIN COMMAND: ADD PREMIUM (Manual)
+# -------------------------------------------------------------------------
+@Client.on_message(filters.command("add_premium") & filters.user(ADMINS))
+async def give_premium_cmd_handler(client, message):
+    if len(message.command) == 4:
+        time_zone = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+        current_time = time_zone.strftime("%d-%m-%Y\n⏱️ ᴊᴏɪɴɪɴɢ ᴛɪᴍᴇ : %I:%M:%S %p") 
+        user_id = int(message.command[1])  
+        try:
+            user = await client.get_users(user_id)
+        except:
+            await message.reply_text("Invalid user ID")
+            return
+        
+        # Renamed variable from 'time' to 'duration' to avoid conflict with import time
+        duration = message.command[2] + " " + message.command[3]
+        seconds = await get_seconds(duration)
+        
+        if seconds > 0:
+            expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
+            user_data = {"id": user_id, "expiry_time": expiry_time}  
+            await db.update_user(user_data) 
+            data = await db.get_user(user_id)
+            expiry = data.get("expiry_time")   
+            
+            # Ensure expiry is timezone aware if necessary, or assume naive from DB
+            if expiry.tzinfo is None:
+                 expiry = pytz.utc.localize(expiry) # Assuming stored as UTC or Naive
 
+            expiry_str_in_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")
+            expiry_str_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y 𝘈𝘵 : %I:%M:%S %p")         
+            
+            await message.reply_text(f"ᴘʀᴇᴍɪᴜᴍ ᴀᴅᴅᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ✅\n\n👤 ᴜꜱᴇʀ : {user.mention}\n⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{duration}</code>\n\n⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}", disable_web_page_preview=True)
+            try:
+                await client.send_message(
+                    chat_id=user_id,
+                    text=f"🎉 𝘊𝘰𝘯𝘨𝘳𝘢𝘵𝘶𝘭𝘢𝘵𝘪𝘰𝘯𝘴! 𝘠𝘰𝘶'𝘷𝘦 𝘨𝘰𝘵 𝘗𝘳𝘦𝘮𝘪𝘶𝘮 𝘈𝘤𝘤𝘦𝘴𝘴!\n\n⏳ 𝘋𝘶𝘳𝘢𝘵𝘪𝘰𝘯 : {duration}\n📅 𝘌𝘹𝘱𝘪𝘳𝘺 : {expiry_str_ist}\n\n✨ 𝘌𝘯𝘫𝘰𝘺 𝘺𝘰𝘶𝘳 𝘱𝘳𝘦𝘮𝘪𝘶𝘮 𝘣𝘦𝘯𝘦𝘧𝘪𝘵𝘴!", disable_web_page_preview=True             
+                )    
+            except:
+                pass
+                
+            await client.send_message(PREMIUM_LOGS, text=f"#Added_Premium\n\n👤 ᴜꜱᴇʀ : {user.mention}\n⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{duration}</code>\n\n⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}", disable_web_page_preview=True)
+                    
+        else:
+            await message.reply_text("Invalid time format. Please use '1 day', '1 hour', '1 min', '1 month', or '1 year'")
+    else:
+        await message.reply_text("Usage : /add_premium user_id time (e.g., '1 day', '1 hour', '1 min', '1 month', or '1 year')")
